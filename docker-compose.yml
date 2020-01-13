@@ -8,6 +8,26 @@ services:
       PASSWORD: "${PASSWORD}"
       M3U_BASE: "${M3U_BASE}"
       REDIS_URL: redis:6379
+    ports:
+      - 8080:8080
+    volumes:
+      - ./logs:/logs
+    networks:
+      - redis-net
+    depends_on:
+      - redis
 
   redis:
-    image: redis:latest
+    image: redis:4.0.5-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - redis-net
+    volumes:
+      - redis-data:/data
+
+networks:
+  redis-net:
+
+volumes:
+  logs:
+  redis-data:

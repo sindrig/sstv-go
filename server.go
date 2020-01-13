@@ -33,7 +33,7 @@ func chanList(w http.ResponseWriter, r *http.Request) {
         log.Printf("sent request for base at '%s'", BASE_M3U)
     } else {
         go func(c chan string) {
-            c <- ""
+            c <- "#EXTM3U\n"
         }(baseChan)
         log.Println("No base set, sent empty string")
     }
@@ -60,7 +60,7 @@ func chanList(w http.ResponseWriter, r *http.Request) {
 
 func ssChans(c chan string, host string) {
     defer close(c)
-    for i := 0; i <= 150; i++ {
+    for i := 1; i <= 150; i++ {
         c <- fmt.Sprintf("#EXTINF:-1 tvg-id=\"SSTV-%02d\" tvg-logo=\"\", SmoothStreams %d\n", i, i)
         c <- fmt.Sprintf("http://%s/channel/%02d\n", host, i)
     }
@@ -71,14 +71,16 @@ func getFile(c chan string, url string) {
     log.Printf("Getting url: '%s'", url)
     resp, err := http.Get(url)
     if err != nil {
-        log.Fatal(err)
+        log.Printf("Error in http get: %s", err)
+        return
     }
     defer resp.Body.Close()
 
     if resp.StatusCode == http.StatusOK {
         bodyBytes, err := ioutil.ReadAll(resp.Body)
         if err != nil {
-            log.Fatal(err)
+            log.Printf("Error in http get, reading body: %s", err)
+            return
         }
         bodyString := string(bodyBytes)
         c <- bodyString
@@ -149,7 +151,7 @@ func getAuth(c chan string) {
     c <- auth.Hash
 
     dur, _ := time.ParseDuration(fmt.Sprintf("%dm", auth.Valid))
-    log.Printf("Expires in %.2 minutes", dur.Minutes())
+    log.Printf("Expires in %.2f minutes", dur.Minutes())
     error := client.Set(cacheKey, auth.Hash, dur).Err()
     if error != nil {
         log.Printf("Error setting value in cache: %s", error)

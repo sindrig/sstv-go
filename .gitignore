@@ -16,3 +16,4 @@
 /sstv-go
 /logs
 /.env
+**/__pycache__

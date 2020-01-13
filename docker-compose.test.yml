@@ -5,7 +5,12 @@ services:
     build: tester
     # command: run_tests.sh
     environment:
-      BASE_URL: sstv
+      BASE_URL: sstv:8080
+    depends_on:
+      - mockServer
+      - sstv
+    networks:
+      - http-net
 
   mockServer:
     image: mockserver/mockserver:latest
@@ -16,19 +21,40 @@ services:
       MOCKSERVER_INITIALIZATION_JSON_PATH: /config/initializer.json
     volumes:
       - ./sstv-fake:/config
+    networks:
+      - http-net
 
   sstv:
     build: .
     environment:
-      USERNAME: "${USERNAME}"
-      PASSWORD: "${PASSWORD}"
-      M3U_BASE: "${M3U_BASE}"
+      USERNAME: foo
+      PASSWORD: bar
+      M3U_BASE: http://mockServer:1080/
       REDIS_URL: redis:6379
     ports:
       - 8080:8080
+    volumes:
+      - ./logs:/logs
+    networks:
+      - redis-net
+      - http-net
+    depends_on:
+      - redis
 
   redis:
-    image: redis:latest
+    image: redis:4.0.5-alpine
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - redis-net
+    volumes:
+      - redis-data:/data
+
+
+networks:
+  redis-net:
+  http-net:
 
 volumes:
+  logs:
   sstv-fake:
+  redis-data:

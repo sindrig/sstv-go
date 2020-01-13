@@ -1,18 +1,10 @@
 [
   {
     "httpRequest": {
-      "path": "/firstExampleExpectation"
+      "path": "/channels.m3u"
     },
     "httpResponse": {
-      "body": "some response"
-    }
-  },
-  {
-    "httpRequest": {
-      "path": "/secondExampleExpectation"
-    },
-    "httpResponse": {
-      "body": "some response"
+      "body": "#EXTM3U\n#EXTINF:-1 tvg-id=\"RUV\" tvg-logo=\"http://staticimages.net/images/ruv.png\", RÚV\nhttp://ruvruv-live.hls.adaptive.level3.net/ruv/ruv/index.m3u8\n"
     }
   }
 ]
