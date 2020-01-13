@@ -1,0 +1,34 @@
+version: '3.7'
+
+services:
+  sut:
+    build: tester
+    # command: run_tests.sh
+    environment:
+      BASE_URL: sstv
+
+  mockServer:
+    image: mockserver/mockserver:latest
+    ports:
+      - 1080:1080
+    environment:
+      MOCKSERVER_PROPERTY_FILE: /config/mockserver.properties
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/initializer.json
+    volumes:
+      - ./sstv-fake:/config
+
+  sstv:
+    build: .
+    environment:
+      USERNAME: "${USERNAME}"
+      PASSWORD: "${PASSWORD}"
+      M3U_BASE: "${M3U_BASE}"
+      REDIS_URL: redis:6379
+    ports:
+      - 8080:8080
+
+  redis:
+    image: redis:latest
+
+volumes:
+  sstv-fake:

@@ -1,0 +1,13 @@
+version: '3.7'
+
+services:
+  sstv:
+    build: .
+    environment:
+      USERNAME: "${USERNAME}"
+      PASSWORD: "${PASSWORD}"
+      M3U_BASE: "${M3U_BASE}"
+      REDIS_URL: redis:6379
+
+  redis:
+    image: redis:latest
