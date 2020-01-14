@@ -359,7 +359,6 @@ func epg(w http.ResponseWriter, r *http.Request) {
     timeFormat := "20060102150405 +0000"
 
     for _, channel := range epgData.Channels {
-        break
         chanId := fmt.Sprintf("SSTV-%s", channel.Number)
         resultEpg.Channel = append(resultEpg.Channel, Channel{
             ID: chanId,
