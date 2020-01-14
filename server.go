@@ -3,6 +3,7 @@ package main
 import (
     "context"
     "encoding/json"
+    "encoding/xml"
     "fmt"
     "io/ioutil"
     "log"
@@ -10,11 +11,15 @@ import (
     "net/url"
     "os"
     "os/signal"
+    "regexp"
+    "sort"
+    "strconv"
     "syscall"
     "time"
 
     "github.com/go-redis/redis/v7"
     "github.com/gorilla/mux"
+    "github.com/mitchellh/mapstructure"
     "gopkg.in/natefinch/lumberjack.v2"
 )
 
@@ -38,8 +43,12 @@ func chanList(w http.ResponseWriter, r *http.Request) {
         log.Println("No base set, sent empty string")
     }
 
+    epgChan := make(chan SSEpg)
+    go getSsJsonEpg(epgChan)
+
     chanChan := make(chan string)
-    go ssChans(chanChan, r.Host)
+
+    go ssChans(chanChan, <-epgChan, r.Host)
 
     base, ok := <-baseChan
     if ok {
@@ -58,11 +67,12 @@ func chanList(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func ssChans(c chan string, host string) {
+func ssChans(c chan string, epgData SSEpg, host string) {
     defer close(c)
-    for i := 1; i <= 150; i++ {
-        c <- fmt.Sprintf("#EXTINF:-1 tvg-id=\"SSTV-%02d\" tvg-logo=\"\", SmoothStreams %d\n", i, i)
-        c <- fmt.Sprintf("http://%s/channel/%02d\n", host, i)
+    for _, channel := range epgData.Channels {
+        chanId := fmt.Sprintf("SSTV-%s", channel.Number)
+        c <- fmt.Sprintf("#EXTINF:-1 tvg-id=\"%s\" tvg-logo=\"%s\", %s\n", chanId, channel.Img, channel.Name)
+        c <- fmt.Sprintf("http://%s/channel/%s\n", host, channel.Number)
     }
 }
 
@@ -94,18 +104,22 @@ type AuthResponse struct {
     Error string
 }
 
-func getAuth(c chan string) {
-    defer close(c)
-    cacheKey := "authHash"
+func getRedisClient() *redis.Client {
     redisUrl := os.Getenv("REDIS_URL")
     if len(redisUrl) == 0 {
         redisUrl = "localhost:6379"
     }
-    client := redis.NewClient(&redis.Options{
+    return redis.NewClient(&redis.Options{
         Addr:     redisUrl,
         Password: "",
         DB:       0,
     })
+}
+
+func getAuth(c chan string) {
+    defer close(c)
+    cacheKey := "authHash"
+    client := getRedisClient()
     val, err := client.Get(cacheKey).Result()
     if err != nil {
         log.Printf("Error getting auth: %s", err)
@@ -150,23 +164,240 @@ func getAuth(c chan string) {
 
     c <- auth.Hash
 
-    dur, _ := time.ParseDuration(fmt.Sprintf("%dm", auth.Valid))
-    log.Printf("Expires in %.2f minutes", dur.Minutes())
-    error := client.Set(cacheKey, auth.Hash, dur).Err()
-    if error != nil {
-        log.Printf("Error setting value in cache: %s", error)
-        return
-    }
+    go cache(client, cacheKey, auth.Hash, auth.Valid)
 }
 
 func chanRedir(w http.ResponseWriter, r *http.Request) {
     c := make(chan string)
     go getAuth(c)
-    channel := mux.Vars(r)["chan"]
-    log.Printf("Creating url...")
-    url := fmt.Sprintf("https://deu.SmoothStreams.tv/viewss/ch%sq1.stream/playlist.m3u8?wmsAuthSign=%s", channel, <-c)
-    log.Printf("Url created...")
+    chanStr := mux.Vars(r)["chan"]
+    channel, err := strconv.Atoi(chanStr)
+    if err != nil {
+        w.WriteHeader(404)
+        w.Write([]byte(fmt.Sprintf("No channel found for %s", chanStr)))
+        return
+    }
+    log.Printf("Creating url for chan %s...", channel)
+    url := fmt.Sprintf("https://deu-uk1.SmoothStreams.tv/viewss/ch%02dq1.stream/playlist.m3u8?wmsAuthSign=%s", channel, <-c)
+    log.Printf("Url created... %s", url)
     http.Redirect(w, r, url, http.StatusFound)
+}
+
+type TextLang struct {
+    Text string `xml:",chardata"`
+    Lang string `xml:"lang,attr"`
+}
+
+type Channel struct {
+    Text        string   `xml:",chardata"`
+    ID          string   `xml:"id,attr"`
+    DisplayName TextLang `xml:"display-name"`
+    URL         string   `xml:"url,omitempty"`
+}
+
+type Programme struct {
+    Text     string    `xml:",chardata"`
+    Start    string    `xml:"start,attr"`
+    Stop     string    `xml:"stop,attr"`
+    Channel  string    `xml:"channel,attr"`
+    Title    TextLang  `xml:"title"`
+    SubTitle *TextLang `xml:"sub-title,omitempty"`
+    Desc     TextLang  `xml:"desc"`
+}
+
+type EPG struct {
+    XMLName           xml.Name    `xml:"tv"`
+    Text              string      `xml:",chardata"`
+    GeneratorInfoName string      `xml:"generator-info-name,attr"`
+    GeneratorInfoURL  string      `xml:"generator-info-url,attr"`
+    Channel           []Channel   `xml:"channel"`
+    Programme         []Programme `xml:"programme"`
+}
+
+type JSONEvent struct {
+    Name        string
+    Description string
+    Time        string
+    Runtime     string
+    Category    string
+}
+
+func epochToTime(s string) (time.Time, error) {
+    sec, err := strconv.ParseInt(s, 10, 64)
+    if err != nil {
+        return time.Time{}, err
+    }
+    return time.Unix(sec, 0), nil
+}
+
+func cache(client *redis.Client, key string, value string, minutes int64) {
+    dur, _ := time.ParseDuration(fmt.Sprintf("%dm", minutes))
+    error := client.Set(key, value, dur).Err()
+    if error != nil {
+        log.Printf("Error setting value in cache: %s", error)
+    } else {
+        log.Printf("Cached %s", key)
+    }
+}
+
+type SSEpgEvent struct {
+    Name        string
+    Description string
+    Category    string
+    Start       time.Time
+    Stop        time.Time
+}
+
+type SSEpgChannel struct {
+    Number string
+    Name   string
+    Img    string
+    Events []SSEpgEvent
+}
+
+type SSEpg struct {
+    Channels []SSEpgChannel
+}
+
+func getSsJsonEpg(c chan SSEpg) {
+    defer close(c)
+    client := getRedisClient()
+    cacheKey := "ssJsonEpgFeed"
+    var jsonData map[string]interface{}
+    jsonFeed, err := client.Get(cacheKey).Result()
+    if err == nil && len(jsonFeed) > 0 {
+        log.Println("Got jsonFeed from cache")
+    } else {
+        u, err := url.Parse(os.Getenv("JSONTVURL"))
+        feed, _ := url.Parse("feed-new.json")
+        if err != nil {
+            log.Fatal("Could not parse json tv url...")
+        }
+        feedChan := make(chan string)
+        go getFile(feedChan, u.ResolveReference(feed).String())
+
+        jsonFeed, _ = <-feedChan
+        log.Println(jsonFeed)
+        go cache(client, cacheKey, jsonFeed, 1)
+    }
+
+    if err := json.Unmarshal([]byte(string(jsonFeed)), &jsonData); err != nil {
+        log.Printf("Could not unmarshal: %s\n\n%s", err, jsonFeed)
+    }
+    var epg SSEpg
+    data := jsonData["data"].(map[string]interface{})
+
+    for _, channelI := range data {
+        channel := channelI.(map[string]interface{})
+        var events []SSEpgEvent
+        switch evs := channel["events"].(type) {
+        case map[string]interface{}:
+            for _, eventI := range evs {
+                var event JSONEvent
+                mapstructure.Decode(eventI, &event)
+                // event := eventI.(map[string]string)
+                startTime, _ := epochToTime(event.Time)
+                dur, _ := time.ParseDuration(fmt.Sprintf("%sm", event.Runtime))
+                events = append(events, SSEpgEvent{
+                    Name:        event.Name,
+                    Description: event.Description,
+                    Start:       startTime,
+                    Stop:        startTime.Add(dur),
+                })
+            }
+        }
+
+        epg.Channels = append(epg.Channels, SSEpgChannel{
+            Number: channel["number"].(string),
+            Name:   channel["name"].(string),
+            Img:    channel["img"].(string),
+            Events: events,
+        })
+    }
+    sort.Slice(epg.Channels, func(i, j int) bool {
+        a, err1 := strconv.Atoi(epg.Channels[i].Number)
+        b, err2 := strconv.Atoi(epg.Channels[j].Number)
+        return err1 == nil && err2 == nil && a < b
+    })
+
+    c <- epg
+
+}
+
+func epg(w http.ResponseWriter, r *http.Request) {
+    cacheKey := "epg"
+    log.Println(cacheKey)
+    baseChan := make(chan string)
+    BASE_EPG := os.Getenv("EPG_BASE")
+    if BASE_EPG != "" {
+        go getFile(baseChan, BASE_EPG)
+        log.Printf("sent request for base at '%s'", BASE_EPG)
+    } else {
+        go func(c chan string) {
+            c <- "<tv></tv>"
+        }(baseChan)
+        log.Println("No base set, sent empty string")
+    }
+
+    epgChan := make(chan SSEpg)
+    go getSsJsonEpg(epgChan)
+
+    base, _ := <-baseChan
+    re := regexp.MustCompile(`\r?\n`)
+    base = re.ReplaceAllString(base, "")
+
+    var resultEpg EPG
+    if err := xml.Unmarshal([]byte(string(base)), &resultEpg); err != nil {
+        log.Printf("Could not unmarshal: %s", base)
+        w.Write([]byte(base))
+        return
+    }
+
+    log.Printf("Got channels: %d", len(resultEpg.Channel))
+
+    epgData := <-epgChan
+    timeFormat := "20060102150405 +0000"
+
+    for _, channel := range epgData.Channels {
+        break
+        chanId := fmt.Sprintf("SSTV-%s", channel.Number)
+        resultEpg.Channel = append(resultEpg.Channel, Channel{
+            ID: chanId,
+            DisplayName: TextLang{
+                Lang: "en",
+                Text: channel.Name,
+            },
+        })
+        for _, event := range channel.Events {
+            resultEpg.Programme = append(resultEpg.Programme, Programme{
+                Title: TextLang{
+                    Text: event.Name,
+                    Lang: "en",
+                },
+                Channel: chanId,
+                Desc: TextLang{
+                    Text: event.Description,
+                    Lang: "en",
+                },
+                Start: event.Start.Format(timeFormat),
+                Stop:  event.Stop.Format(timeFormat),
+            })
+        }
+    }
+    log.Printf("Got channels: %d", len(resultEpg.Channel))
+    result, err := xml.MarshalIndent(resultEpg, "", "    ")
+    if err != nil {
+        log.Printf("Could not marshal result: %s", err)
+        w.WriteHeader(500)
+        w.Write([]byte(err.Error()))
+    } else {
+        w.Header().Set("Content-Type", "text/xml")
+        // w.Write([]byte(base))
+        w.Write([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"))
+        w.Write(result)
+        // w.Header().Set("real", string(result))
+    }
+
 }
 
 func main() {
@@ -176,6 +407,7 @@ func main() {
     r.HandleFunc("/", root)
     r.HandleFunc("/channels.m3u", chanList)
     r.HandleFunc("/channel/{chan}", chanRedir)
+    r.HandleFunc("/guide.xml", epg)
 
     srv := &http.Server{
         Handler:      r,

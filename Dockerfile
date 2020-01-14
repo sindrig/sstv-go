@@ -24,6 +24,8 @@ ARG LOG_DIR=/logs
 ENV LOG_FILE_LOCATION=${LOG_DIR}/app.log
 RUN mkdir -p ${LOG_DIR}
 
+ENV JSONTVURL=https://fast-guide.smoothstreams.tv/
+
 WORKDIR /root/
 
 COPY --from=builder /app/main .

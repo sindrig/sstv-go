@@ -1,4 +1,4 @@
-version: '3.7'
+version: '3'
 
 services:
   sstv:
@@ -7,6 +7,7 @@ services:
       USERNAME: "${USERNAME}"
       PASSWORD: "${PASSWORD}"
       M3U_BASE: "${M3U_BASE}"
+      EPG_BASE: "${EPG_BASE}"
       REDIS_URL: redis:6379
     ports:
       - 8080:8080
