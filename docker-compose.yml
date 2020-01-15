@@ -9,6 +9,7 @@ services:
       PASSWORD: "${PASSWORD}"
       M3U_BASE: "${M3U_BASE}"
       EPG_BASE: "${EPG_BASE}"
+      BASE_URL: "${BASE_URL}"
       REDIS_URL: redis:6379
     ports:
       - 8080:8080

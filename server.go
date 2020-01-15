@@ -21,6 +21,12 @@ import (
 func chanList(w http.ResponseWriter, r *http.Request) {
     log.Printf("Received chanList request from %s\n", r.RemoteAddr)
 
+    baseUrl := os.Getenv("BASE_URL")
+    if len(baseUrl) == 0 {
+        baseUrl = r.Host
+    }
+    log.Printf("Using base url: '%s'", baseUrl)
+
     baseChan := make(chan string)
     sstv.GetBasem3u(baseChan)
 
@@ -34,7 +40,7 @@ func chanList(w http.ResponseWriter, r *http.Request) {
         for _, channel := range (<-epgChan).Channels {
             chanId := fmt.Sprintf("SSTV-%s", channel.Number)
             chanChan <- fmt.Sprintf("#EXTINF:-1 tvg-id=\"%s\" tvg-logo=\"%s\", %s\n", chanId, channel.Img, channel.Name)
-            chanChan <- fmt.Sprintf("http://%s/c/%s\n", r.Host, channel.Number)
+            chanChan <- fmt.Sprintf("http://%s/c/%s\n", baseUrl, channel.Number)
         }
     }()
 
