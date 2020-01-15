@@ -3,6 +3,7 @@ version: '3'
 services:
   sstv:
     image: sindrigudmundsson/sstv-go:latest
+    restart: always
     environment:
       USERNAME: "${USERNAME}"
       PASSWORD: "${PASSWORD}"
@@ -20,6 +21,7 @@ services:
 
   redis:
     image: redis:4.0.5-alpine
+    restart: always
     command: ["redis-server", "--appendonly", "yes"]
     networks:
       - redis-net
