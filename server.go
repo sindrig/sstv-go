@@ -133,6 +133,13 @@ func epg(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func logRequest(handler http.Handler) http.Handler {
+    return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+        log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+        handler.ServeHTTP(w, r)
+    })
+}
+
 func main() {
     r := mux.NewRouter()
 
@@ -141,7 +148,7 @@ func main() {
     r.HandleFunc("/g", epg)
 
     srv := &http.Server{
-        Handler:      r,
+        Handler:      logRequest(r),
         Addr:         ":8080",
         ReadTimeout:  10 * time.Second,
         WriteTimeout: 10 * time.Second,
