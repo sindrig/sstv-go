@@ -23,11 +23,6 @@ import (
     "gopkg.in/natefinch/lumberjack.v2"
 )
 
-func root(w http.ResponseWriter, r *http.Request) {
-    log.Printf("Accept: %s", r.Header.Get("Accept"))
-    w.Write([]byte(""))
-}
-
 func chanList(w http.ResponseWriter, r *http.Request) {
     log.Printf("Received chanList request from %s\n", r.RemoteAddr)
     BASE_M3U := os.Getenv("M3U_BASE")
@@ -72,7 +67,7 @@ func ssChans(c chan string, epgData SSEpg, host string) {
     for _, channel := range epgData.Channels {
         chanId := fmt.Sprintf("SSTV-%s", channel.Number)
         c <- fmt.Sprintf("#EXTINF:-1 tvg-id=\"%s\" tvg-logo=\"%s\", %s\n", chanId, channel.Img, channel.Name)
-        c <- fmt.Sprintf("http://%s/channel/%s\n", host, channel.Number)
+        c <- fmt.Sprintf("http://%s/c/%s\n", host, channel.Number)
     }
 }
 
@@ -277,7 +272,6 @@ func getSsJsonEpg(c chan SSEpg) {
         go getFile(feedChan, u.ResolveReference(feed).String())
 
         jsonFeed, _ = <-feedChan
-        log.Println(jsonFeed)
         go cache(client, cacheKey, jsonFeed, 1)
     }
 
@@ -391,22 +385,18 @@ func epg(w http.ResponseWriter, r *http.Request) {
         w.Write([]byte(err.Error()))
     } else {
         w.Header().Set("Content-Type", "text/xml")
-        // w.Write([]byte(base))
         w.Write([]byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"))
         w.Write(result)
-        // w.Header().Set("real", string(result))
     }
 
 }
 
 func main() {
-    // Create Server and Route Handlers
     r := mux.NewRouter()
 
-    r.HandleFunc("/", root)
-    r.HandleFunc("/channels.m3u", chanList)
-    r.HandleFunc("/channel/{chan}", chanRedir)
-    r.HandleFunc("/guide.xml", epg)
+    r.HandleFunc("/c", chanList)
+    r.HandleFunc("/c/{chan}", chanRedir)
+    r.HandleFunc("/g", epg)
 
     srv := &http.Server{
         Handler:      r,
@@ -415,7 +405,6 @@ func main() {
         WriteTimeout: 10 * time.Second,
     }
 
-    // Configure Logging
     LOG_FILE_LOCATION := os.Getenv("LOG_FILE_LOCATION")
     if LOG_FILE_LOCATION != "" {
         log.SetOutput(&lumberjack.Logger{
