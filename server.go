@@ -23,7 +23,7 @@ func chanList(w http.ResponseWriter, r *http.Request) {
 
     baseUrl := os.Getenv("BASE_URL")
     if len(baseUrl) == 0 {
-        baseUrl = r.Host
+        baseUrl = fmt.Sprintf("http://%s", r.Host)
     }
     log.Printf("Using base url: '%s'", baseUrl)
 
@@ -40,7 +40,7 @@ func chanList(w http.ResponseWriter, r *http.Request) {
         for _, channel := range (<-epgChan).Channels {
             chanId := fmt.Sprintf("SSTV-%s", channel.Number)
             chanChan <- fmt.Sprintf("#EXTINF:-1 tvg-id=\"%s\" tvg-logo=\"%s\", %s\n", chanId, channel.Img, channel.Name)
-            chanChan <- fmt.Sprintf("http://%s/c/%s\n", baseUrl, channel.Number)
+            chanChan <- fmt.Sprintf("%s/c/%s\n", baseUrl, channel.Number)
         }
     }()
 
