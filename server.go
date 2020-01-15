@@ -110,19 +110,22 @@ func epg(w http.ResponseWriter, r *http.Request) {
             },
         })
         for _, event := range channel.Events {
-            resultEpg.Programme = append(resultEpg.Programme, sstv.Programme{
+            prog := sstv.Programme{
                 Title: sstv.TextLang{
                     Text: event.Name,
                     Lang: "en",
                 },
                 Channel: chanId,
-                Desc: sstv.TextLang{
+                Start:   event.Start.Format(timeFormat),
+                Stop:    event.Stop.Format(timeFormat),
+            }
+            if len(event.Description) > 0 {
+                prog.Desc = &sstv.TextLang{
                     Text: event.Description,
                     Lang: "en",
-                },
-                Start: event.Start.Format(timeFormat),
-                Stop:  event.Stop.Format(timeFormat),
-            })
+                }
+            }
+            resultEpg.Programme = append(resultEpg.Programme, prog)
         }
     }
     log.Printf("Got channels: %d", len(resultEpg.Channel))

@@ -33,7 +33,7 @@ type Programme struct {
 	Channel  string    `xml:"channel,attr"`
 	Title    TextLang  `xml:"title"`
 	SubTitle *TextLang `xml:"sub-title,omitempty"`
-	Desc     TextLang  `xml:"desc"`
+	Desc     *TextLang `xml:"desc,omitempty"`
 }
 
 type EPG struct {
