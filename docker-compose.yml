@@ -26,12 +26,9 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     networks:
       - redis-net
-    volumes:
-      - redis-data:/data
 
 networks:
   redis-net:
 
 volumes:
   logs:
-  redis-data:

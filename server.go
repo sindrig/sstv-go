@@ -28,7 +28,7 @@ func chanList(w http.ResponseWriter, r *http.Request) {
     log.Printf("Using base url: '%s'", baseUrl)
 
     baseChan := make(chan string)
-    sstv.GetBasem3u(baseChan)
+    go sstv.GetBasem3u(baseChan)
 
     epgChan := make(chan sstv.SSEpg)
     go sstv.GetSsJsonEpg(epgChan)

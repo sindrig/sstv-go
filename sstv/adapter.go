@@ -36,44 +36,45 @@ func GetSsJsonEpg(c chan SSEpg) {
 		go cache(client, cacheKey, jsonFeed, 1)
 	}
 
+	var epg SSEpg
 	if err := json.Unmarshal([]byte(string(jsonFeed)), &jsonData); err != nil {
 		log.Printf("Could not unmarshal: %s\n\n%s", err, jsonFeed)
-	}
-	var epg SSEpg
-	data := jsonData["data"].(map[string]interface{})
+	} else {
+		data := jsonData["data"].(map[string]interface{})
 
-	for _, channelI := range data {
-		channel := channelI.(map[string]interface{})
-		var events []SSEpgEvent
-		switch evs := channel["events"].(type) {
-		case map[string]interface{}:
-			for _, eventI := range evs {
-				var event JSONEvent
-				mapstructure.Decode(eventI, &event)
-				// event := eventI.(map[string]string)
-				startTime, _ := epochToTime(event.Time)
-				dur, _ := time.ParseDuration(fmt.Sprintf("%sm", event.Runtime))
-				events = append(events, SSEpgEvent{
-					Name:        event.Name,
-					Description: event.Description,
-					Start:       startTime,
-					Stop:        startTime.Add(dur),
-				})
+		for _, channelI := range data {
+			channel := channelI.(map[string]interface{})
+			var events []SSEpgEvent
+			switch evs := channel["events"].(type) {
+			case map[string]interface{}:
+				for _, eventI := range evs {
+					var event JSONEvent
+					mapstructure.Decode(eventI, &event)
+					// event := eventI.(map[string]string)
+					startTime, _ := epochToTime(event.Time)
+					dur, _ := time.ParseDuration(fmt.Sprintf("%sm", event.Runtime))
+					events = append(events, SSEpgEvent{
+						Name:        event.Name,
+						Description: event.Description,
+						Start:       startTime,
+						Stop:        startTime.Add(dur),
+					})
+				}
 			}
-		}
 
-		epg.Channels = append(epg.Channels, SSEpgChannel{
-			Number: channel["number"].(string),
-			Name:   channel["name"].(string),
-			Img:    channel["img"].(string),
-			Events: events,
+			epg.Channels = append(epg.Channels, SSEpgChannel{
+				Number: channel["number"].(string),
+				Name:   channel["name"].(string),
+				Img:    channel["img"].(string),
+				Events: events,
+			})
+		}
+		sort.Slice(epg.Channels, func(i, j int) bool {
+			a, err1 := strconv.Atoi(epg.Channels[i].Number)
+			b, err2 := strconv.Atoi(epg.Channels[j].Number)
+			return err1 == nil && err2 == nil && a < b
 		})
 	}
-	sort.Slice(epg.Channels, func(i, j int) bool {
-		a, err1 := strconv.Atoi(epg.Channels[i].Number)
-		b, err2 := strconv.Atoi(epg.Channels[j].Number)
-		return err1 == nil && err2 == nil && a < b
-	})
 
 	c <- epg
 

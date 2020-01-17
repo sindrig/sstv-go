@@ -29,7 +29,9 @@ services:
     environment:
       USERNAME: foo
       PASSWORD: bar
-      M3U_BASE: http://mockServer:1080/
+      M3U_BASE: http://mockServer:1080/channels.m3u
+      EPG_BASE: http://mockServer:1080/guide.xml
+      JSONTVURL: http://mockServer:1080/guide.json
       REDIS_URL: redis:6379
     ports:
       - 8080:8080
@@ -46,8 +48,6 @@ services:
     command: ["redis-server", "--appendonly", "yes"]
     networks:
       - redis-net
-    volumes:
-      - redis-data:/data
 
 
 networks:
@@ -57,4 +57,3 @@ networks:
 volumes:
   logs:
   sstv-fake:
-  redis-data:
