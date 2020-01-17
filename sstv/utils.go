@@ -47,7 +47,10 @@ func cache(client *redis.Client, key string, value string, minutes int64) {
 func getFile(c chan string, url string) {
 	defer close(c)
 	log.Printf("Getting url: '%s'", url)
-	resp, err := http.Get(url)
+	client := http.Client{
+		Timeout: time.Duration(15 * time.Second),
+	}
+	resp, err := client.Get(url)
 	if err != nil {
 		log.Printf("Error in http get: %s", err)
 		return
