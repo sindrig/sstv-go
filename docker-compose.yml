@@ -5,16 +5,14 @@ services:
     image: sindrigudmundsson/sstv-go:latest
     restart: always
     environment:
-      USERNAME: "${USERNAME}"
-      PASSWORD: "${PASSWORD}"
-      M3U_BASE: "${M3U_BASE}"
-      EPG_BASE: "${EPG_BASE}"
-      BASE_URL: "${BASE_URL}"
-      REDIS_URL: redis:6379
+      SSTV_USERNAME: "${USERNAME}"
+      SSTV_PASSWORD: "${PASSWORD}"
+      SSTV_M3U_BASE: "${M3U_BASE}"
+      SSTV_EPG_BASE: "${EPG_BASE}"
+      SSTV_BASE_URL: "${BASE_URL}"
+      SSTV_REDIS_URL: redis:6379
     ports:
       - 8080:8080
-    volumes:
-      - ./logs:/logs
     networks:
       - redis-net
     depends_on:
@@ -29,6 +27,3 @@ services:
 
 networks:
   redis-net:
-
-volumes:
-  logs:

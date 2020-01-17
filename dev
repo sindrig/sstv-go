@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+set -e
+
+BUILDTARGET=`mktemp`
+go build -o $BUILDTARGET bin/server.go
+export SSTV_USERNAME=`lpass show starstreams.tv --username`
+export SSTV_PASSWORD=`lpass show starstreams.tv --password`
+export $(cat .env | xargs) && $BUILDTARGET

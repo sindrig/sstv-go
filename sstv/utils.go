@@ -1,17 +1,12 @@
 package sstv
 
 import (
-	// "encoding/json"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
-	// "net/url"
-	"os"
 	"strconv"
 	"time"
-
-	"github.com/go-redis/redis/v7"
 )
 
 func epochToTime(s string) (time.Time, error) {
@@ -22,26 +17,15 @@ func epochToTime(s string) (time.Time, error) {
 	return time.Unix(sec, 0), nil
 }
 
-func getRedisClient() *redis.Client {
-	redisUrl := os.Getenv("REDIS_URL")
-	if len(redisUrl) == 0 {
-		redisUrl = "localhost:6379"
-	}
-	return redis.NewClient(&redis.Options{
-		Addr:     redisUrl,
-		Password: "",
-		DB:       0,
-	})
-}
-
-func cache(client *redis.Client, key string, value string, minutes int64) {
+func cache(client CacheClient, key string, value string, minutes int64) error {
 	dur, _ := time.ParseDuration(fmt.Sprintf("%dm", minutes))
-	error := client.Set(key, value, dur).Err()
+	error := client.Set(key, value, dur)
 	if error != nil {
 		log.Printf("Error setting value in cache: %s", error)
 	} else {
 		log.Printf("Cached %s", key)
 	}
+	return error
 }
 
 func getFile(c chan string, url string) {
@@ -56,7 +40,7 @@ func getFile(c chan string, url string) {
 		return
 	}
 	defer resp.Body.Close()
-
+	log.Printf("Received status %d for %s", resp.StatusCode, url)
 	if resp.StatusCode == http.StatusOK {
 		bodyBytes, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
