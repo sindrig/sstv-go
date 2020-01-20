@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// Authentication json response
+// AuthResponse Authentication json response
 type AuthResponse struct {
 	Hash  string
 	Valid int64
@@ -13,12 +13,13 @@ type AuthResponse struct {
 	Error string
 }
 
-// XML EPG structs
+// TextLang XML with optional language
 type TextLang struct {
 	Text string `xml:",chardata"`
-	Lang string `xml:"lang,attr"`
+	Lang string `xml:"lang,attr,omitempty"`
 }
 
+// Channel XML channel
 type Channel struct {
 	Text        string   `xml:",chardata"`
 	ID          string   `xml:"id,attr"`
@@ -26,6 +27,7 @@ type Channel struct {
 	URL         string   `xml:"url,omitempty"`
 }
 
+// Programme XML programme
 type Programme struct {
 	Text     string    `xml:",chardata"`
 	Start    string    `xml:"start,attr"`
@@ -36,6 +38,7 @@ type Programme struct {
 	Desc     *TextLang `xml:"desc,omitempty"`
 }
 
+// EPG Top-level xml epg
 type EPG struct {
 	XMLName           xml.Name    `xml:"tv"`
 	Text              string      `xml:",chardata"`
@@ -45,7 +48,7 @@ type EPG struct {
 	Programme         []Programme `xml:"programme"`
 }
 
-// JSON event in sstv epg
+// JSONEvent JSON event in sstv epg
 type JSONEvent struct {
 	Name        string
 	Description string
@@ -54,7 +57,7 @@ type JSONEvent struct {
 	Category    string
 }
 
-// Intermediary types for conversion from sstv epg to epg
+// SSEpgEvent An event for SSEpgChannel
 type SSEpgEvent struct {
 	Name        string
 	Description string
@@ -63,6 +66,7 @@ type SSEpgEvent struct {
 	Stop        time.Time
 }
 
+// SSEpgChannel A channel for SSEpg
 type SSEpgChannel struct {
 	Number string
 	Name   string
@@ -70,6 +74,7 @@ type SSEpgChannel struct {
 	Events []SSEpgEvent
 }
 
+// SSEpg Intermediary type for conversion from sstv epg to epg
 type SSEpg struct {
 	Channels []SSEpgChannel
 }

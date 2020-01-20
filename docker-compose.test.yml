@@ -2,58 +2,6 @@ version: '3'
 
 services:
   sut:
-    build: tester
-    # command: run_tests.sh
-    environment:
-      BASE_URL: sstv:8080
-    depends_on:
-      - mockServer
-      - sstv
-    networks:
-      - http-net
-
-  mockServer:
-    image: mockserver/mockserver:latest
-    ports:
-      - 1080:1080
-    environment:
-      MOCKSERVER_PROPERTY_FILE: /config/mockserver.properties
-      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/initializer.json
-    volumes:
-      - ./sstv-fake:/config
-    networks:
-      - http-net
-
-  sstv:
-    build: .
-    environment:
-      USERNAME: foo
-      PASSWORD: bar
-      M3U_BASE: http://mockServer:1080/channels.m3u
-      EPG_BASE: http://mockServer:1080/guide.xml
-      JSONTVURL: http://mockServer:1080/guide.json
-      REDIS_URL: redis:6379
-    ports:
-      - 8080:8080
-    volumes:
-      - ./logs:/logs
-    networks:
-      - redis-net
-      - http-net
-    depends_on:
-      - redis
-
-  redis:
-    image: redis:4.0.5-alpine
-    command: ["redis-server", "--appendonly", "yes"]
-    networks:
-      - redis-net
-
-
-networks:
-  redis-net:
-  http-net:
-
-volumes:
-  logs:
-  sstv-fake:
+    build: 
+      context: .
+      dockerfile: ./Dockerfile-test

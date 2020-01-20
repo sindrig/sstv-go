@@ -7,7 +7,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -15,25 +14,25 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func GetSsJsonEpg(c chan SSEpg) {
+// getSsJSONEpg Get the EPG from SS
+func getSsJSONEpg(runtime RuntimeUtils, c chan SSEpg) {
 	defer close(c)
-	client := getRedisClient()
 	cacheKey := "ssJsonEpgFeed"
 	var jsonData map[string]interface{}
-	jsonFeed, err := client.Get(cacheKey).Result()
+	jsonFeed, err := runtime.Cache.Get(cacheKey)
 	if err == nil && len(jsonFeed) > 0 {
 		log.Println("Got jsonFeed from cache")
 	} else {
-		u, err := url.Parse(os.Getenv("JSONTVURL"))
-		feed, _ := url.Parse("feed-new.json")
+		u, err := url.Parse(GetConfig().JSONTVUrl)
 		if err != nil {
 			log.Fatal("Could not parse json tv url...")
 		}
+		feed, _ := url.Parse("feed-new.json")
 		feedChan := make(chan string)
 		go getFile(feedChan, u.ResolveReference(feed).String())
 
 		jsonFeed, _ = <-feedChan
-		go cache(client, cacheKey, jsonFeed, 1)
+		go cache(runtime.Cache, cacheKey, jsonFeed, 1)
 	}
 
 	var epg SSEpg
@@ -80,34 +79,38 @@ func GetSsJsonEpg(c chan SSEpg) {
 
 }
 
-func GetBasem3u(c chan string) {
-	BASE_M3U := os.Getenv("M3U_BASE")
+// getBasem3u Fetch the base m3u (or only header if not set)
+func getBasem3u(c chan string) {
+	cfg := GetConfig()
+
 	log.Println("Creating base...")
-	if BASE_M3U != "" {
-		go getFile(c, BASE_M3U)
-		log.Printf("sent request for base at '%s'", BASE_M3U)
+	if len(cfg.M3uBase) > 0 {
+		go getFile(c, cfg.M3uBase)
+		log.Printf("sent request for base at '%s'", cfg.M3uBase)
 	} else {
 		c <- "#EXTM3U\n"
 		log.Println("No base set, sent empty string")
 	}
 }
 
-func GetBaseEpg(c chan string) {
-	BASE_EPG := os.Getenv("EPG_BASE")
-	if BASE_EPG != "" {
-		go getFile(c, BASE_EPG)
-		log.Printf("sent request for base at '%s'", BASE_EPG)
+// getBaseEpg Fetch the base EPG (or only scaffold if empty)
+func getBaseEpg(c chan string) {
+	cfg := GetConfig()
+	if len(cfg.EpgBase) > 0 {
+		go getFile(c, cfg.EpgBase)
+		log.Printf("sent request for base at '%s'", cfg.EpgBase)
 	} else {
 		c <- "<tv></tv>"
 		log.Println("No base set, sent empty string")
 	}
 }
 
-func GetAuth(c chan string) {
+// getAuth Get authentication hash for ss
+func getAuth(runtime RuntimeUtils, c chan string) {
 	defer close(c)
+	cfg := GetConfig()
 	cacheKey := "authHash"
-	client := getRedisClient()
-	val, err := client.Get(cacheKey).Result()
+	val, err := runtime.Cache.Get(cacheKey)
 	if err != nil {
 		log.Printf("Error getting auth: %s", err)
 	}
@@ -118,8 +121,8 @@ func GetAuth(c chan string) {
 	}
 
 	response, err := http.PostForm("https://auth.smoothstreams.tv/hash_api.php", url.Values{
-		"username": {os.Getenv("USERNAME")},
-		"password": {os.Getenv("PASSWORD")},
+		"username": {cfg.Username},
+		"password": {cfg.Password},
 		"site":     {"viewss"},
 	})
 
@@ -151,5 +154,5 @@ func GetAuth(c chan string) {
 
 	c <- auth.Hash
 
-	go cache(client, cacheKey, auth.Hash, auth.Valid)
+	go cache(runtime.Cache, cacheKey, auth.Hash, auth.Valid)
 }
