@@ -74,7 +74,12 @@ type SSEpgChannel struct {
 	Events []SSEpgEvent
 }
 
-// SSEpg Intermediary type for conversion from sstv epg to epg
+// SSEpg Intermediary type for conversion from sstv EPG to EPG
 type SSEpg struct {
 	Channels []SSEpgChannel
+}
+
+// RuvChannelResponse Channel response for geoblocked RUV
+type RuvChannelResponse struct {
+	Result []string
 }

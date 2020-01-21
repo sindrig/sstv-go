@@ -7,7 +7,6 @@ services:
     environment:
       SSTV_USERNAME: "${USERNAME}"
       SSTV_PASSWORD: "${PASSWORD}"
-      SSTV_M3U_BASE: "${M3U_BASE}"
       SSTV_EPG_BASE: "${EPG_BASE}"
       SSTV_BASE_URL: "${BASE_URL}"
       SSTV_REDIS_URL: redis:6379

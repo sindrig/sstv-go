@@ -51,6 +51,7 @@ func main() {
 
 	r.HandleFunc("/c", sstv.ServeChanList(runtime))
 	r.HandleFunc("/c/{chan}", sstv.ServeChanRedir(runtime))
+	r.HandleFunc("/ruv/{chan}", sstv.ServeRuvRedir(runtime))
 	r.HandleFunc("/g", sstv.ServeEPG(runtime))
 
 	srv := &http.Server{

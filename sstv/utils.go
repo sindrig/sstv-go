@@ -51,3 +51,15 @@ func getFile(c chan string, url string) {
 		c <- bodyString
 	}
 }
+
+func emitChannelDataToWriter(channel chan string, w http.ResponseWriter) {
+	for {
+		val, ok := <-channel
+		if ok {
+			w.Write([]byte(val))
+		} else {
+			log.Println("Breaking out of channel loop")
+			break
+		}
+	}
+}

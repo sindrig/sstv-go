@@ -79,18 +79,22 @@ func getSsJSONEpg(runtime RuntimeUtils, c chan SSEpg) {
 
 }
 
-// getBasem3u Fetch the base m3u (or only header if not set)
-func getBasem3u(c chan string) {
-	cfg := GetConfig()
-
-	log.Println("Creating base...")
-	if len(cfg.M3uBase) > 0 {
-		go getFile(c, cfg.M3uBase)
-		log.Printf("sent request for base at '%s'", cfg.M3uBase)
-	} else {
-		c <- "#EXTM3U\n"
-		log.Println("No base set, sent empty string")
-	}
+// getBasem3u Base m3u with header and static channels
+func getBasem3u(c chan string, baseURL string) {
+	defer close(c)
+	c <- "#EXTM3U\n"
+	c <- "#EXTINF:-1 tvg-id=\"RUV\" tvg-logo=\"http://iptv.irdn.is/images/ruv.png\", RÚV\n"
+	c <- fmt.Sprintf("%s/ruv/%s\n", baseURL, "ruv")
+	c <- "#EXTINF:-1 tvg-id=\"RUVI\" tvg-logo=\"http://iptv.irdn.is/images/ruv2.png\", RÚV Íþróttir\n"
+	c <- fmt.Sprintf("%s/ruv/%s\n", baseURL, "ruv2")
+	c <- "#EXTINF:-1 tvg-id=\"N4\" tvg-logo=\"http://iptv.irdn.is/images/n4.png\", N4\n"
+	c <- "http://tv.vodafoneplay.is/n4/index.m3u8\n"
+	c <- "#EXTINF:-1 tvg-id=\"ST2\" tvg-logo=\"http://iptv.irdn.is/images/stod2.png\", Stöð 2\n"
+	c <- "http://visirlive.365cdn.is/hls-live/stod2.smil/playlist.m3u8\n"
+	c <- "#EXTINF:-1 tvg-id=\"SYN\" tvg-logo=\"http://iptv.irdn.is/images/stod2sport.png\", Stöð 2 Sport\n"
+	c <- "https://visirlive.365cdn.is/hls-live/straumur05.smil/playlist.m3u8\n"
+	c <- "#EXTINF:-1 tvg-id=\"Alþingi\" tvg-logo=\"http://iptv.irdn.is/images/althingi.png\", Alþingi\n"
+	c <- "http://5-226-137-173.netvarp.is/althingi_600/index.m3u8\n"
 }
 
 // getBaseEpg Fetch the base EPG (or only scaffold if empty)
@@ -155,4 +159,35 @@ func getAuth(runtime RuntimeUtils, c chan string) {
 	c <- auth.Hash
 
 	go cache(runtime.Cache, cacheKey, auth.Hash, auth.Valid)
+}
+
+func getRuvStream(c chan string, channel string) {
+	defer close(c)
+	u, err := url.Parse(GetConfig().RuvAPIURL)
+	if err != nil {
+		log.Fatal("Could not parse ruv api url...")
+	}
+	query := u.Query()
+	query.Add("channel", channel)
+	u.RawQuery = query.Encode()
+
+	fileChan := make(chan string)
+	go getFile(fileChan, u.String())
+
+	resultBody, ok := <-fileChan
+	log.Printf("result: %s", resultBody)
+	if !ok {
+		log.Printf("Did not receive result from ruv stream")
+		return
+	}
+
+	var result RuvChannelResponse
+	jsonErr := json.Unmarshal([]byte(string(resultBody)), &result)
+
+	if jsonErr != nil {
+		log.Printf("RUV: jsonErr unmarshaling: %s", jsonErr)
+		return
+	}
+
+	c <- result.Result[0]
 }

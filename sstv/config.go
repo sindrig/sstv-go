@@ -16,6 +16,7 @@ type Config struct {
 	Username  string `envconfig:"USERNAME"`
 	Password  string `envconfig:"PASSWORD"`
 	BaseURL   string `envconfig:"BASE_URL"`
+	RuvAPIURL string `envconfig:"RUV_API_URL" default:"http://ruv.is/sites/all/themes/at_ruv/scripts/ruv-stream.php?format=json"`
 }
 
 var cfg Config

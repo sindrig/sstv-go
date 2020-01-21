@@ -24,7 +24,7 @@ func ServeChanList(runtime RuntimeUtils) func(http.ResponseWriter, *http.Request
 		log.Printf("Using base url: '%s'", baseURL)
 
 		baseChan := make(chan string)
-		go getBasem3u(baseChan)
+		go getBasem3u(baseChan, baseURL)
 
 		epgChan := make(chan SSEpg)
 		go getSsJSONEpg(runtime, epgChan)
@@ -40,20 +40,8 @@ func ServeChanList(runtime RuntimeUtils) func(http.ResponseWriter, *http.Request
 			}
 		}()
 
-		base, ok := <-baseChan
-		if ok {
-			w.Write([]byte(base))
-		}
-
-		for {
-			val, ok := <-chanChan
-			if ok {
-				w.Write([]byte(val))
-			} else {
-				log.Println("Breaking out of chanChan loop")
-				break
-			}
-		}
+		emitChannelDataToWriter(baseChan, w)
+		emitChannelDataToWriter(chanChan, w)
 	}
 }
 
@@ -73,6 +61,16 @@ func ServeChanRedir(runtime RuntimeUtils) func(http.ResponseWriter, *http.Reques
 		url := fmt.Sprintf("https://deu-uk1.SmoothStreams.tv/viewss/ch%02dq1.stream/playlist.m3u8?wmsAuthSign=%s", channel, <-c)
 		log.Printf("Url created... %s", url)
 		http.Redirect(w, r, url, http.StatusFound)
+	}
+}
+
+// ServeRuvRedir Redirect to geoblocked ruv m3u8 stream
+func ServeRuvRedir(runtime RuntimeUtils) func(http.ResponseWriter, *http.Request) {
+	return func(w http.ResponseWriter, r *http.Request) {
+		chanStr := mux.Vars(r)["chan"]
+		c := make(chan string)
+		go getRuvStream(c, chanStr)
+		http.Redirect(w, r, <-c, http.StatusFound)
 	}
 }
 
