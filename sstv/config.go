@@ -10,7 +10,6 @@ import (
 // Config All configuration that sstv logic should need
 type Config struct {
 	RedisURL  string `envconfig:"REDIS_URL" default:"localhost:6379"`
-	M3uBase   string `envconfig:"M3U_BASE"`
 	EpgBase   string `envconfig:"EPG_BASE"`
 	JSONTVUrl string `envconfig:"JSONTVURL" default:"https://fast-guide.smoothstreams.tv/"`
 	Username  string `envconfig:"USERNAME"`
