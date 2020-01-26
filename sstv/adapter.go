@@ -163,31 +163,35 @@ func getAuth(runtime RuntimeUtils, c chan string) {
 
 func getRuvStream(c chan string, channel string) {
 	defer close(c)
-	u, err := url.Parse(GetConfig().RuvAPIURL)
-	if err != nil {
-		log.Fatal("Could not parse ruv api url...")
+	if GetConfig().RuvUseGeoblocked {
+		u, err := url.Parse(GetConfig().RuvAPIURL)
+		if err != nil {
+			log.Fatal("Could not parse ruv api url...")
+		}
+		query := u.Query()
+		query.Add("channel", channel)
+		u.RawQuery = query.Encode()
+
+		fileChan := make(chan string)
+		go getFile(fileChan, u.String())
+
+		resultBody, ok := <-fileChan
+		log.Printf("result: %s", resultBody)
+		if !ok {
+			log.Printf("Did not receive result from ruv stream")
+			return
+		}
+
+		var result RuvChannelResponse
+		jsonErr := json.Unmarshal([]byte(string(resultBody)), &result)
+
+		if jsonErr != nil {
+			log.Printf("RUV: jsonErr unmarshaling: %s", jsonErr)
+			return
+		}
+
+		c <- result.Result[0]
+	} else {
+		c <- fmt.Sprintf("http://ruvruv-live.hls.adaptive.level3.net/ruv/%s/index.m3u8", channel)
 	}
-	query := u.Query()
-	query.Add("channel", channel)
-	u.RawQuery = query.Encode()
-
-	fileChan := make(chan string)
-	go getFile(fileChan, u.String())
-
-	resultBody, ok := <-fileChan
-	log.Printf("result: %s", resultBody)
-	if !ok {
-		log.Printf("Did not receive result from ruv stream")
-		return
-	}
-
-	var result RuvChannelResponse
-	jsonErr := json.Unmarshal([]byte(string(resultBody)), &result)
-
-	if jsonErr != nil {
-		log.Printf("RUV: jsonErr unmarshaling: %s", jsonErr)
-		return
-	}
-
-	c <- result.Result[0]
 }
