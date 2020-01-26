@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -36,6 +37,12 @@ func (r Redis) Set(key string, value string, expr time.Duration) error {
 	return r.c.Set(key, value, expr).Err()
 }
 
+func k8sProbe(w http.ResponseWriter, r *http.Request) {
+	// TODO: Check redis connection? Something.
+	w.WriteHeader(200)
+	w.Write([]byte("Ready!"))
+}
+
 func main() {
 	r := mux.NewRouter()
 
@@ -53,17 +60,19 @@ func main() {
 	r.HandleFunc("/c/{chan}", sstv.ServeChanRedir(runtime))
 	r.HandleFunc("/ruv/{chan}", sstv.ServeRuvRedir(runtime))
 	r.HandleFunc("/g", sstv.ServeEPG(runtime))
+	r.HandleFunc("/ready", k8sProbe)
 
+	addr := fmt.Sprintf(":%s", sstv.GetConfig().Port)
 	srv := &http.Server{
 		Handler:      logRequest(r),
-		Addr:         ":8080",
+		Addr:         addr,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 	}
 
 	// Start Server
 	go func() {
-		log.Println("Starting Server")
+		log.Printf("Starting Server on %s", addr)
 		if err := srv.ListenAndServe(); err != nil {
 			log.Fatal(err)
 		}

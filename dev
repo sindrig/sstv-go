@@ -6,4 +6,5 @@ BUILDTARGET=`mktemp`
 go build -o $BUILDTARGET bin/server.go
 export SSTV_USERNAME=`lpass show starstreams.tv --username`
 export SSTV_PASSWORD=`lpass show starstreams.tv --password`
+export SSTV_PORT=8080
 export $(cat .env | xargs) && $BUILDTARGET
