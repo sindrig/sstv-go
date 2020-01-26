@@ -17,7 +17,9 @@ import (
 
 func logRequest(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+		if r.URL.String() != "/ready/" {
+			log.Printf("%s %s %s\n", r.RemoteAddr, r.Method, r.URL)
+		}
 		handler.ServeHTTP(w, r)
 	})
 }
@@ -60,7 +62,7 @@ func main() {
 	r.HandleFunc("/c/{chan}", sstv.ServeChanRedir(runtime))
 	r.HandleFunc("/ruv/{chan}", sstv.ServeRuvRedir(runtime))
 	r.HandleFunc("/g", sstv.ServeEPG(runtime))
-	r.HandleFunc("/ready", k8sProbe)
+	r.HandleFunc("/ready/", k8sProbe)
 
 	addr := fmt.Sprintf(":%s", sstv.GetConfig().Port)
 	srv := &http.Server{
