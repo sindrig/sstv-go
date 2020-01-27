@@ -131,7 +131,7 @@ func getAuth(runtime RuntimeUtils, c chan string) {
 	})
 
 	if err != nil {
-		log.Printf("Error in postform: %s (username: '%s')", err, cfg.Username)
+		log.Printf("Error in postform: %s", err)
 		return
 	}
 
@@ -152,7 +152,7 @@ func getAuth(runtime RuntimeUtils, c chan string) {
 	}
 
 	if auth.Code != "1" {
-		log.Printf("Auth Code: %s. Error: %s", auth.Code, auth.Error)
+		log.Printf("Auth Code: %s. Error: %s. Creds: ('%s' - 'XXXXXXX')", auth.Code, auth.Error, cfg.Username)
 		return
 	}
 
