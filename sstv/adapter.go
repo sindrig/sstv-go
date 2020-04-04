@@ -95,6 +95,8 @@ func getBasem3u(c chan string, baseURL string) {
 	c <- "https://visirlive.365cdn.is/hls-live/straumur05.smil/playlist.m3u8\n"
 	c <- "#EXTINF:-1 tvg-id=\"Alþingi\" tvg-logo=\"http://iptv.irdn.is/images/althingi.png\", Alþingi\n"
 	c <- "http://5-226-137-173.netvarp.is/althingi_600/index.m3u8\n"
+	c <- "#EXTINF:-1 tvg-id=\"MBL\" tvg-logo=\"http://mbl.is/img/hauslogo/mbl.generic.png\", MBL\n"
+	c <- "https://k100streymi.mbl.is/enski/index.m3u8\n"
 }
 
 // getBaseEpg Fetch the base EPG (or only scaffold if empty)
